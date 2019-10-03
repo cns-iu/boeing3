@@ -1,0 +1,17 @@
+version: '3'
+services:
+  shiny-app:
+    build: .
+    expose:
+      - "3838"
+    volumes:
+      - ./shiny-app/:/srv/shiny-server/
+      - ./logs/:/var/log/shiny-server/
+  
+  nginx-proxy:
+    image: nginx
+    volumes:
+      - ./proxy/conf.d/:/etc/nginx/conf.d/
+      - ./logs/:/var/log/nginx/
+    ports:
+      - 80:80
