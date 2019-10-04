@@ -14,7 +14,7 @@ library(DBI)
 # Get a connection
 DBI::dbConnect(
   odbc::odbc(), 
-  driver = "/opt/simba/athenaodbc/lib/64/libathenaodbc_sb64.so", 
+  Driver = Sys.getenv("ATHENA_ODBC_DRIVER"),
   AwsRegion = Sys.getenv("AWS_REGION"),
   AuthenticationType = "IAM Credentials",
   S3OutputLocation = Sys.getenv("ATHENA_RESULTS_BUCKET"),
