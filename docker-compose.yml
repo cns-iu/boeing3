@@ -7,7 +7,8 @@ services:
     volumes:
       - ./shiny-app/:/srv/shiny-server/
       - ./logs/:/var/log/shiny-server/
-  
+      - ./.Renviron:/home/shiny/.Renviron
+
   nginx-proxy:
     image: nginx
     volumes:
