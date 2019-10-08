@@ -8,6 +8,12 @@
       }
     },
     {
+      "name": "r-env",
+      "host": {
+        "sourcePath": "/var/app/current/.Renviron"
+      }
+    },
+    {
       "name": "nginx-proxy-conf",
       "host": {
         "sourcePath": "/var/app/current/proxy/conf.d"
@@ -24,6 +30,11 @@
         {
           "sourceVolume": "shiny-app",
           "containerPath": "/srv/shiny-server",
+          "readOnly": true
+        },
+        {
+          "sourceVolume": "r-env",
+          "containerPath": "/home/shiny/.Renviron",
           "readOnly": true
         }
       ]
