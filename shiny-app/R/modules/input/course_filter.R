@@ -1,18 +1,18 @@
 
 courseFilterInput <- function(id, yearRange, terms, courses) {
-  ns <- shiny::NS(id)
+  ns <- NS(id)
 
-  shiny::tagList(
-    shiny::sliderInput(
+  tagList(
+    sliderInput(
       ns("year"), "Year",
       min = yearRange[1], max = yearRange[2], value = yearRange[2],
       step = 1, sep = "", ticks = FALSE
     ),
-    shiny::selectInput(
+    selectInput(
       ns("term"), "Term",
       choices = terms
     ),
-    shiny::selectInput(
+    selectInput(
       ns("course"), "Course",
       choices = courses
     )
@@ -20,7 +20,7 @@ courseFilterInput <- function(id, yearRange, terms, courses) {
 }
 
 courseFilter <- function(input, output, session) {
-  shiny::reactive({
+  reactive({
     list(
       year = input$year,
       term = input$term,

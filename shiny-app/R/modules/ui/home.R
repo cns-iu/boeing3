@@ -1,9 +1,9 @@
 
 homeUI <- function(id, ...) {
-  ns <- shiny::NS(id)
+  ns <- NS(id)
 
-  shiny::tagList(
-    shiny::h2("This is the home page!"),
+  tagList(
+    h2("This is the home page!"),
     ...
   )
 }

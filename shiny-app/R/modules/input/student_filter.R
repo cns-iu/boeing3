@@ -1,24 +1,24 @@
 
 studentFilterInput <- function(id, gradeRange, ageRange, levelOfEducation) {
   genders <- c("Male", "Female", "Not Specified")
-  ns <- shiny::NS(id)
+  ns <- NS(id)
 
-  shiny::tagList(
-    shiny::sliderInput(
+  tagList(
+    sliderInput(
       ns("grade"), "Filter by Student Grade",
       min = gradeRange[1], max = gradeRange[2], value = gradeRange,
       dragRange = TRUE
     ),
-    shiny::sliderInput(
+    sliderInput(
       ns("age"), "Filter by Student Age",
       min = ageRange[1], max = ageRange[2], value = ageRange,
       step = 1, ticks = FALSE, dragRange = TRUE
     ),
-    shiny::checkboxGroupInput(
+    checkboxGroupInput(
       ns("gender"), "Select Student Genders",
       choices = genders, selected = genders
     ),
-    shiny::checkboxGroupInput(
+    checkboxGroupInput(
       ns("levelOfEducation"), "Select Student Level of Education",
       choices = levelOfEducation, selected = levelOfEducation
     )
@@ -26,7 +26,7 @@ studentFilterInput <- function(id, gradeRange, ageRange, levelOfEducation) {
 }
 
 studentFilter <- function(input, output, session) {
-  shiny::reactive({
+  reactive({
     list(
       grade = input$grade,
       age = input$age,
