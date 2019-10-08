@@ -1,49 +1,39 @@
 library("shiny")
-source("./modules/ui/home.R")
-source("./modules/input/course_filter.R")
-source("./modules/input/student_filter.R")
+library("future")
+library("promises")
+library("DBI")
+source("modules/queries/async_query.R")
+source("modules/queries/dashboard1_vis1_query.R")
+source("modules/input/course_filter.R")
+source("modules/input/student_filter.R")
+source("modules/ui/dashboard1.R")
+source("modules/ui/home.R")
+
+plan("multiprocess")
 
 
-courses <- list(
-  `Advance Manufacturing` = list("NY", "NJ", "CT"),
-  `Leadership at all Levels` = list("WA", "OR", "CA"),
-  `Aerospace` = list("Aeropace")
-)
-
-educationLevels <- c(
-  "High School", "Associates", "Bachelors",
-  "Masters", "Doctoral", "Not Specified"
-)
-
+makeTabPanelForUI <- function(id, title, UI, ...) {
+  tabPanel(title, value = id, UI(id, ...))
+}
 
 ui <- navbarPage(
-  id = "activeTab",
+  id = "pageTabs",
   title = "EdX Learning Analytics and Visualization - Interactive Prototypes",
   collapsible = TRUE,
 
-  tabPanel(
-    "Home", value = "home",
-    homeUI("home")
-  ),
-
-  tabPanel(
-    "Dashboard 1", value = "dashboard1",
-    sidebarLayout(
-      sidebarPanel(
-        width = 3,
-        courseFilterInput("courseFilter", c(2008, 2019), c("Spring", "Summer", "Fall"), courses),
-        hr(),
-        studentFilterInput("studentFilter", c(0, 1), c(18, 90), educationLevels)
-      ),
-      mainPanel(
-        # TODO
-      )
-    )
-  )
+  makeTabPanelForUI("home", "Home", homeUI),
+  makeTabPanelForUI("dashboard1", "Dashboard 1", dashboard1UI)
 )
 
 server <- function(input, output, session) {
-  course_filters = callModule(courseFilter, "courseFilter")
+  # Load dashboard 1 on first switch to tab
+  dashboard1Observer <- observeEvent(input$pageTabs, {
+    if (input$pageTabs == "dashboard1") {
+      callModule(dashboard1, "dashboard1")
+      dashboard1Observer$destroy()
+      dashboard1Observer <- NULL
+    }
+  })
 }
 
 shinyApp(ui, server)
