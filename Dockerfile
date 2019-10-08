@@ -2,7 +2,9 @@ FROM rocker/shiny-verse
 
 RUN R -e "install.packages('DBI')" \
     && R -e "install.packages('odbc')" \
-    && R -e "install.packages('RSQLite')"
+    && R -e "install.packages('RSQLite')" \
+    && R -e "install.packages('future')" \
+    && R -e "install.packages('promises)'"
 
 RUN apt install -y alien unixodbc curl
 RUN curl -o athena-odbc.rpm \
