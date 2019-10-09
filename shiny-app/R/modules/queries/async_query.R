@@ -17,6 +17,6 @@ asyncQuery <- function(fun) {
 
       dbDisconnect(connection)
       result
-    })
+    }, packages = c("odbc", "DBI"))
   }
 }
