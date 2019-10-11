@@ -42,14 +42,14 @@ CREATE OR REPLACE VIEW dv_enrollments AS
 -- dv_logs
 CREATE OR REPLACE VIEW dv_logs AS 
   SELECT DISTINCT
+    S.user_id,
+    L.context.course_id,
     L.module_id,
     'TODO' AS sequential_id,
     'TODO' AS vertical_id,
     L.time,
     L.event_type,
-    L.page,
-    S.user_id,
-    L.context.course_id
+    L.page
   FROM
     edx_log AS L
     INNER JOIN dv_students AS S ON (L.username = S.username);
