@@ -7,7 +7,7 @@ CREATE OR REPLACE VIEW dv_courses AS
     metadata
   FROM edx_course_structure_prod_analytics
   WHERE category = 'course'
-  ORDER BY metadata.start DESC
+  ORDER BY metadata.start DESC;
 
 -- dv_students
 CREATE OR REPLACE VIEW dv_students AS 
@@ -15,7 +15,7 @@ CREATE OR REPLACE VIEW dv_students AS
   FROM
     edx_profiles AS P
     INNER JOIN edx_users AS U ON (P.user_id = U.id)
-  ORDER BY P.user_id
+  ORDER BY P.user_id;
 
 -- dv_enrollments
 CREATE OR REPLACE VIEW dv_enrollments AS 
@@ -37,4 +37,23 @@ CREATE OR REPLACE VIEW dv_enrollments AS
     edx_enrollment AS E
     INNER JOIN dv_students AS S ON (E.user_id = S.user_id)
     INNER JOIN edx_certificates AS C ON (E.user_id = C.user_id AND E.course_id = C.course_id)
-  ORDER BY E.course_id, E.user_id
+  ORDER BY E.course_id, E.user_id;
+
+-- dv_logs
+CREATE OR REPLACE VIEW dv_logs AS 
+  SELECT DISTINCT
+    L.module_id,
+    'TODO' AS sequential_id,
+    'TODO' AS vertical_id,
+    L.time,
+    L.event_type,
+    L.page,
+    S.user_id,
+    L.context.course_id
+  FROM
+    edx_log AS L
+    INNER JOIN dv_students AS S ON (L.username = S.username);
+
+-- TODO
+-- dv_modules
+-- dv_transitions
