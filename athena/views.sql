@@ -45,8 +45,12 @@ CREATE OR REPLACE VIEW dv_logs AS
     S.user_id,
     L.context.course_id,
     L.module_id,
-    'TODO' AS sequential_id,
-    'TODO' AS vertical_id,
+    COALESCE(
+      TRY(SPLIT(SPLIT(SPLIT(L.page, '?')[1],'#')[1], '/')[7]),
+      TRY(element_at(SPLIT(L.module_id, '/'), -1))
+    ) AS module_hex,
+    TRY(SPLIT(SPLIT(SPLIT(L.page, '?')[1],'#')[1], '/')[8]) AS sequential_hex,
+    'TODO' AS vertical_hex,
     L.time,
     L.event_type,
     L.page
