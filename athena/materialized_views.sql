@@ -15,9 +15,5 @@ CREATE TABLE dt_enrollments WITH (format='PARQUET') AS
 
 -- dt_logs
 DROP TABLE IF EXISTS dt_logs;
-CREATE TABLE dt_logs
-  WITH (
-    format='PARQUET',
-    partitioned_by = ARRAY['course_id']
-  ) AS
+CREATE TABLE dt_logs WITH (format='PARQUET') AS
   SELECT * FROM dv_logs;
