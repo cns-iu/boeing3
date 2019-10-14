@@ -1,10 +1,8 @@
 FROM rocker/shiny-verse
 
-RUN R -e "install.packages('DBI')" \
-    && R -e "install.packages('odbc')" \
-    && R -e "install.packages('RSQLite')" \
-    && R -e "install.packages('future')" \
-    && R -e "install.packages('promises)'"
+RUN R -e "install.packages(c('DBI', 'odbc', 'RSQLite'))" \
+    && R -e "install.packages(c('future', 'promises'))" \
+    && R -e "install.packages(c('R6', 'magrittr', 'tools'))"
 
 RUN apt install -y alien unixodbc curl
 RUN curl -o athena-odbc.rpm \
