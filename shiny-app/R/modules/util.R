@@ -1,15 +1,23 @@
 
+# Commonly used functions
 Util = local({
   ns <- new.env()
 
+  # Packs arguments into a list for use in `do.call`
   ns$packArguments = function(..., pack = list()) append(pack, list(...))
+
+  # Converts the first letter of each word into uppercase
   ns$toTitleCase <- tools::toTitleCase
 
+  # Creates a list where each element is interleaved with a value
   ns$interleave <- function(items, value) {
     reducer <- function(result, item) append(result, list(item, value))
     Reduce(reducer, items, list())
   }
 
+  # Similar to builtin `names` but always returns a list of equal length as the data
+  # Also replaces unnamed positions with their index value
+  # Optionally adds a prefix to each name
   ns$names <- function(items, prefix = "") {
     initial <- names(items)
     indexes <- 1:length(items)
@@ -22,11 +30,13 @@ Util = local({
     paste0(prefix, fullNames)
   }
 
+  # Wraps the result of an ui function in a `tabPanel`
   ns$makeTabPanel = function(id, label, ui, ...) {
     ui <- ifelse(is.function(ui), ui, ui$ui)
     tabPanel(label, value = id, ui(id, ...))
   }
 
+  # Loads a server module (using `callModule`) the first time the containing tab is activated
   ns$loadOnFirstTabSwitch = function(input, selector, tab, server, ...) {
     server <- ifelse(is.function(server), server, server$server)
     observer <- observeEvent(input[[selector]], {
@@ -41,15 +51,21 @@ Util = local({
   return(ns)
 })
 
+# Turns a synchronous database query into an asynchronous query
 AsyncQuery <- R6Class(
   "AsyncQuery",
   public = list(
+    # query: A function taking a connection as its 1st argument
     initialize = function(query) {
       private$.query <- ifelse(is.function(query), query, query$query)
     },
+
+    # Executes the query asynchronously
     execute = function(...) {
       future({ self$executeSync(...) }, packages = c("odbc", "DBI"))
     },
+
+    # Executes the query synchronously
     executeSync = function(...) {
       conn <- private$connect()
       result <- private$.query(conn, ...)
@@ -63,6 +79,7 @@ AsyncQuery <- R6Class(
   private = list(
     .query = NULL,
 
+    # Connects to a database using setting provided in .Renviron
     connect = function() {
       dbConnect(
         odbc::odbc(),
@@ -76,16 +93,20 @@ AsyncQuery <- R6Class(
         sessionToken = Sys.getenv("AWS_SESSION_TOKEN")
       )
     },
+
+    # Releases a connection
     disconnect = function(conn) dbDisconnect(conn)
   )
 )
 
+# Creates a simple filter ui and server
 Filter <- R6Class(
   "Filter",
   public = list(
     ui = NULL,
     server = NULL,
 
+    # fun: A function taking a namespace function as its 1st argument and produces the filter ui
     initialize = function(fun) {
       self$ui <- function(id, ...) fun(NS(id), ...)
       self$server <- function(input, output, session, ...) input
@@ -93,9 +114,14 @@ Filter <- R6Class(
   )
 )
 
+# Creates a plot ui and server
 Plot <- R6Class(
   "Plot",
   public = list(
+    # query: A function performing database queries for the plot data
+    # renderer: A function producing the plots for `renderPlot`
+    # plotOptions: Additional arguments for `plotOutput`
+    # renderOptions: Additional arguments for `renderOutput`
     initialize = function(query, renderer, plotOptions = list(), renderOptions = list()) {
       private$.asyncQuery <- AsyncQuery$new(query)
       private$.renderer <- renderer
@@ -162,9 +188,12 @@ Plot <- R6Class(
   )
 )
 
+# Creates a dashboard consisting of filters and plots
 Dashboard <- R6Class(
   "Dashboard",
   public = list(
+    # filters: A list of `Filter` instances
+    # plots: A list of `Plot` instances
     initialize = function(filters, plots) {
       private$.filters <- filters
       private$.filterNames <- Util$names(filters)
@@ -193,18 +222,25 @@ Dashboard <- R6Class(
       names(updaters) <- private$.plotNames
       names(valid) <- private$.plotNames
 
+      updateData <- function() {
+        id <- input$plots
+        if (!valid[[id]]) {
+          valid[[id]] <<- TRUE
+          updaters[[id]](currentFilters)
+        }
+      }
+
       # Observe filter and tab changes
       observeEvent(input$visualize, {
         newFilters <- private$snapshotFilters(filters)
         if (!identical(newFilters, currentFilters)) {
-          currentFilters <- newFilters
-          valid[] <- FALSE # Invalidate all data
-          updaters[[input$plots]](currentFilters)
+          # NOTE: `<<-` is used as this expression is converted into a function by shiny!
+          currentFilters <<- newFilters
+          valid[] <<- FALSE # Invalidate all data
+          updateData()
         }
       })
-      observeEvent(input$plots, {
-        updaters[[input$plots]](currentFilters)
-      })
+      observeEvent(input$plots, { updateData(); })
     }
   ),
   active = list(
@@ -219,23 +255,31 @@ Dashboard <- R6Class(
     .plotNames = NULL,
     .plotNamesPrefixed = NULL,
 
+    # Calls the ui function on each item
     invokeUI = function(names, items, ...) {
       Map(function(name, item) item$ui(name, ...), names, items)
     },
+
+    # Calls the server function (using `callModule`) on each item
     invokeServer = function(names, items, ...) {
       Map(function(name, item) callModule(item$server, name, ...), names, items)
     },
+
+    # Title cases each name or `{prefix} {index}` if name is an index
     makeDisplayNames = function(names, prefix) {
       Map(function(name, index) {
         ifelse(name != index, Util$toTitleCase(name), paste(prefix, index))
       }, names, 1:length(names))
     },
+
+    # Snapshots the current values for filters
     snapshotFilters = function(filters) {
       result <- Map(reactiveValuesToList, filters)
       names(result) <- private$.filterNames
       return(result)
     },
 
+    # Creates a sidebar panel with each filter separated by a horizontal rule and a visualize button at the bottom
     createSidebar = function(ns, ...) {
       tags <- private$invokeUI(ns(private$.filterNamesPrefixed), private$.filters, ...)
       interleavedTags <- Util$interleave(tags, hr())
@@ -246,6 +290,8 @@ Dashboard <- R6Class(
         actionButton(ns("visualize"), "Visualize!")
       ))
     },
+
+    # Creates a main panel with a tab for each visualization/plot
     createVisualizations = function(ns, ...) {
       tags <- private$invokeUI(ns(private$.plotNamesPrefixed), private$.plots, ...)
       tabs <- Map(
