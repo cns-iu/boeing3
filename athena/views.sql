@@ -71,6 +71,76 @@ SELECT parent_child.parent_id,
        AS child_order
   FROM parent_child;
 
+-- dv_course_str
+CREATE OR REPLACE VIEW dv_course_str AS 
+WITH core AS ( 
+  WITH core AS (
+   SELECT
+     a.resource_id AS module_id,
+     a.category AS module_type,
+     a.metadata.display_name AS name,
+     b.parent_id AS parent_id,
+     b.child_order AS child_order
+   FROM edx_course_structure_prod_analytics AS a
+   INNER JOIN dv_parent_child AS b ON (a.resource_id = b.child_id)
+    ),
+  
+  vert AS (
+    SELECT a.module_id,
+           a.parent_id AS parent,
+           b.parent_id AS v_mod_id,
+           b.child_order AS v_child_order
+    FROM core AS a 
+    JOIN dv_parent_child AS b ON a.module_id = b.child_id
+    WHERE NOT (module_type = 'vertical' 
+               OR module_type = 'sequential' 
+               OR module_type = 'chapter')
+    )
+  SELECT a.module_id,
+         a.module_type,
+         a.name,
+         a.parent_id,
+         b.v_mod_id,
+         a.child_order,
+         b.v_child_order
+  FROM core AS a
+  LEFT JOIN vert AS b ON a.module_id = b.module_id  
+  ),
+  vtemp AS (
+    (SELECT a.module_id,
+            a.v_mod_id AS parent_id
+    FROM core AS a 
+    WHERE NOT (a.module_type = 'vertical' 
+               OR a.module_type = 'sequential' 
+               OR a.module_type = 'chapter'))
+    UNION          
+    (SELECT a.module_id,
+            a.module_id AS parent_id
+    FROM core AS a 
+    WHERE a.module_type = 'vertical')
+    ),
+  seq AS (
+    SELECT a.module_id,
+           b.parent_id AS s_mod_id,
+           b.child_order AS s_child_order
+    FROM vtemp AS a 
+    JOIN dv_parent_child AS b ON a.parent_id = b.child_id
+    )
+    
+SELECT a.module_id,
+       a.module_type,
+       a.name,
+       a.parent_id,
+       a.v_mod_id,
+       b.s_mod_id,
+       a.child_order,
+       a.v_child_order,
+       b.s_child_order
+   
+FROM core AS a 
+LEFT JOIN seq AS b ON a.module_id = b.module_id
+     
+     
 -- TODO
 -- dv_modules
 -- dv_transitions
