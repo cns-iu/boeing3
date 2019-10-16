@@ -1,5 +1,7 @@
+-- https://edx.readthedocs.io/projects/devdata/en/latest/internal_data_formats/sql_schema.html
+
 -- dv_courses
-CREATE OR REPLACE VIEW dv_courses AS 
+CREATE OR REPLACE VIEW dv_courses AS
   SELECT DISTINCT
     resource_id as course_id,
     metadata.display_name as course_title,
@@ -10,15 +12,26 @@ CREATE OR REPLACE VIEW dv_courses AS
   ORDER BY metadata.start DESC;
 
 -- dv_students
-CREATE OR REPLACE VIEW dv_students AS 
-  SELECT DISTINCT P.user_id, U.username, U.date_joined, gender, level_of_education, year_of_birth
+CREATE OR REPLACE VIEW dv_students AS
+  SELECT DISTINCT
+    P.user_id,
+    U.username,
+    U.date_joined,
+    nullif(gender, 'NULL'),
+    CASE level_of_education
+      WHEN 'p_oth' THEN 'p'
+      WHEN 'p_se' THEN 'p'
+      WHEN 'NULL' THEN NULL
+      ELSE level_of_education
+    END AS level_of_education,
+    year_of_birth
   FROM
     edx_profiles AS P
     INNER JOIN edx_users AS U ON (P.user_id = U.id)
   ORDER BY P.user_id;
 
 -- dv_enrollments
-CREATE OR REPLACE VIEW dv_enrollments AS 
+CREATE OR REPLACE VIEW dv_enrollments AS
   SELECT DISTINCT
     E.course_id,
     E.user_id,
@@ -40,7 +53,7 @@ CREATE OR REPLACE VIEW dv_enrollments AS
   ORDER BY E.course_id, E.user_id;
 
 -- dv_logs
-CREATE OR REPLACE VIEW dv_logs AS 
+CREATE OR REPLACE VIEW dv_logs AS
   SELECT DISTINCT
     S.user_id,
     L.context.course_id,

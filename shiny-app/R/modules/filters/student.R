@@ -2,9 +2,7 @@
 studentFilter <- Filter$new(
   # 1st arg: A function for namespacing ids, other args: any - should be set in calls to makeTabPanel
   # NOTE: This function MUST end with ...
-  function(ns, gradeRange, ageRange, levelOfEducation, ...) {
-    genders <- c("Male", "Female", "Not Specified")
-
+  function(ns, gradeRange, ageRange, gender, levelOfEducation, ...) {
     tagList(
       sliderInput(
         ns("grade"), "Filter by Student Grade",
@@ -18,7 +16,7 @@ studentFilter <- Filter$new(
       ),
       checkboxGroupInput(
         ns("gender"), "Select Student Genders",
-        genders, genders
+        gender, gender
       ),
       checkboxGroupInput(
         ns("levelOfEducation"), "Select Student Level of Education",

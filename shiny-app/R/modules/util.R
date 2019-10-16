@@ -48,6 +48,13 @@ Util = local({
     })
   }
 
+  # Safely pastes together multiple strings for use in sql statements
+  ns$sqlPasteStrings <- function(conn, ..., sep = ", ") {
+    strings <- as.character(unlist(list(...)))
+    quoted <- dbQuoteString(conn, strings)
+    SQL(paste(quoted, collapse = sep))
+  }
+
   return(ns)
 })
 
@@ -62,7 +69,10 @@ AsyncQuery <- R6Class(
 
     # Executes the query asynchronously
     execute = function(...) {
-      future({ self$executeSync(...) }, packages = c("odbc", "DBI"))
+      future({
+        Util; # Ensures Util is loaded and usable in the future session/process
+        self$executeSync(...)
+      }, packages = c("odbc", "DBI"))
     },
 
     # Executes the query synchronously
@@ -120,26 +130,44 @@ Plot <- R6Class(
   public = list(
     # query: A function performing database queries for the plot data
     # renderer: A function producing the plots for `renderPlot`
+    # method: Shiny render method to use
     # plotOptions: Additional arguments for `plotOutput`
     # renderOptions: Additional arguments for `renderOutput`
-    initialize = function(query, renderer, plotOptions = list(), renderOptions = list()) {
+    initialize = function(
+      query, renderer, method = "plot",
+      plotOptions = list(), renderOptions = list()
+    ) {
       private$.asyncQuery <- AsyncQuery$new(query)
       private$.renderer <- renderer
+      private$.method <- method
       private$.plotOptions <- plotOptions
       private$.renderOptions <- renderOptions
+
+      methods <- switch(
+        method,
+        "plot" = c(plotOutput, renderPlot),
+        "table" = c(tableOutput, renderTable),
+        "datatable" = c(DTOutput, renderDT),
+        "text" = c(textOutput, renderText),
+        "print" = c(verbatimTextOutput, renderPrint),
+        "image" = c(imageOutput, renderImage),
+        "ui" = c(uiOutput, renderUI)
+      )
+      private$.outputMethod <- methods[[1]]
+      private$.renderMethod <- methods[[2]]
     },
 
     ui = function(id, ...) {
       options <- private$getPlotOptions(NS(id))
-      do.call(plotOutput, options)
+      do.call(private$.outputMethod, options)
     },
     server = function(input, output, session, ...) {
       data <- reactiveVal(future({ NULL }))
       expr <- quote({
-        data() %...>% { ifelse(is.null(.), list(), self$renderer(.)) }
+        data()  %...>% { if (is.null(.)) { list() } else { private$.renderer(.) } }
       })
       options <- private$getRenderOptions(expr)
-      output$plot <- do.call(renderPlot, options)
+      output$plot <- do.call(private$.renderMethod, options)
 
       list(
         input = input,
@@ -151,12 +179,16 @@ Plot <- R6Class(
     query = function() self$asyncQuery$query,
     asyncQuery = function() private$.asyncQuery,
     renderer = function() private$.renderer,
+    method = function() private$.method,
     plotOptions = function() private$.plotOptions,
     renderOptions = function() private$.renderOptions
   ),
   private = list(
     .asyncQuery = NULL,
     .renderer = NULL,
+    .method = NULL,
+    .outputMethod = NULL,
+    .renderMethod = NULL,
     .plotOptions = NULL,
     .renderOptions = NULL,
 

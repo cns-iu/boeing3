@@ -1,4 +1,5 @@
 library("shiny")
+library("DT")
 library("R6")
 library("magrittr")
 library("tools")
@@ -25,7 +26,9 @@ ui <- navbarPage(
     # These argument should all be named to prevent confusing results
 
     # Course filter arguments
-    yearRange = c(2008, 2019), courses = list(
+    yearRange = c(2008, 2019), gender = c(
+      "Male" = "m", "Female" = "f", "Other" = "o", "Not Specified" = "X"
+    ), courses = list(
       `Advance Manufacturing` = list("NY", "NJ", "CT"),
       `Leadership at all Levels` = list("WA", "OR", "CA"),
       `Aerospace` = list("Aeropace")
@@ -33,8 +36,10 @@ ui <- navbarPage(
 
     # Student filter arguments
     gradeRange = c(0, 1), ageRange = c(18, 90), levelOfEducation = c(
-      "High School", "Associates", "Bachelors",
-      "Masters", "Doctoral", "Not Specified"
+      "Doctorate" = "p", "Masters" = "m", "Bachelors" = "b",
+      "Associates" = "a", "High School" = "hs", "Junior High / Middle School" = "jhs",
+      "Elementary / Primary School" = "el", "No Formal Education" = "none",
+      "Other" = "other", "Not Specified" = "X"
     )
   )
 )

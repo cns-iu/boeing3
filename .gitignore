@@ -1,5 +1,7 @@
 /logs
 .Renviron
+.Rhistory
+.RData
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
