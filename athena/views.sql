@@ -58,6 +58,18 @@ CREATE OR REPLACE VIEW dv_logs AS
     edx_log AS L
     INNER JOIN dv_students AS S ON (L.username = S.username);
 
+-- dv_parent_child
+CREATE OR REPLACE VIEW dv_parent_child AS
+WITH parent_child AS 
+     (SELECT resource_id AS module_id, child    
+      FROM edx_course_structure_prod_analytics AS a
+      CROSS JOIN UNNEST(a.children) AS t(child))
+SELECT parent_child.module_id,
+       parent_child.child,
+       ROW_NUMBER() OVER (PARTITION BY parent_child.module_id)
+       AS child_order
+  FROM parent_child;
+
 -- TODO
 -- dv_modules
 -- dv_transitions
