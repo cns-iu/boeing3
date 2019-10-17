@@ -23,5 +23,10 @@ studentFilter <- Filter$new(
         levelOfEducation, levelOfEducation
       )
     )
-  }
+  },
+  subquery = paste(
+    "SELECT user_id FROM dt_students WHERE",
+    "coalesce(gender, 'X') = ANY (VALUES ?gender)", "AND",
+    "coalesce(level_of_education, 'X') = ANY (VALUES ?levelOfEducation)"
+  )
 )

@@ -49,8 +49,8 @@ Util = local({
   }
 
   # Safely pastes together multiple strings for use in sql statements
-  ns$sqlPasteStrings <- function(conn, ..., sep = ", ") {
-    strings <- as.character(unlist(list(...)))
+  ns$sqlPasteStrings <- function(conn, ..., sep = ", ", .dots = list()) {
+    strings <- as.character(unlist(c(list(...), .dots)))
     quoted <- dbQuoteString(conn, strings)
     SQL(paste(quoted, collapse = sep))
   }
@@ -113,14 +113,42 @@ AsyncQuery <- R6Class(
 Filter <- R6Class(
   "Filter",
   public = list(
-    ui = NULL,
-    server = NULL,
-
     # fun: A function taking a namespace function as its 1st argument and produces the filter ui
-    initialize = function(fun) {
-      self$ui <- function(id, ...) fun(NS(id), ...)
-      self$server <- function(input, output, session, ...) input
+    initialize = function(renderer, subquery = NULL) {
+      private$.renderer <- renderer
+      private$.subquery <- subquery
+    },
+    ui = function(id, ...) private$.renderer(NS(id), ...),
+    server = function(input, output, session, ...) {
+      list(
+        input = input,
+        subquery = private$makeSubQuery
+      )
     }
+  ),
+  active = list(
+    renderer = function() private$.renderer,
+    subquery = function() private$.subquery
+  ),
+  private = list(
+    .renderer = NULL,
+    .subquery = NULL,
+
+    makeSubQuery = function(values) (function(conn) {
+      if (is.null(private$.subquery)) return(NULL)
+
+      indexes <- sqlParseVariables(conn, private$.subquery)
+      if (length(indexes$start) == 0) return(NULL)
+      if (any(indexes$start == indexes$end)) return(NULL)
+
+      variables <- substring(private$.subquery, indexes$start + 1, indexes$end)
+      normValues <- Map(function(value) {
+        if (length(value) == 1) return(value)
+        Util$sqlPasteStrings(conn, .dots = value)
+      }, values[variables])
+
+      sqlInterpolate(conn, private$.subquery, .dots = normValues)
+    })
   )
 )
 
@@ -244,6 +272,8 @@ Dashboard <- R6Class(
     },
     server = function(input, output, session, ...) {
       filters <- private$invokeServer(private$.filterNamesPrefixed, private$.filters, ...)
+      subqueries <- Map(function(filter) filter$subquery, filters)
+      filters <- Map(function(filter) filter$input, filters)
       plots <- private$invokeServer(private$.plotNamesPrefixed, private$.plots, ...)
       updaters <- Map(function(plot) plot$update, plots)
       plots <- Map(function(plot) plot$input, plots)
@@ -258,7 +288,9 @@ Dashboard <- R6Class(
         id <- input$plots
         if (!valid[[id]]) {
           valid[[id]] <<- TRUE
-          updaters[[id]](currentFilters)
+          updaters[[id]](Map(function(values, subquery) {
+            c(values, subquery = subquery(values))
+          }, currentFilters, subqueries))
         }
       }
 

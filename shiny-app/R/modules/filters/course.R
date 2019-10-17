@@ -16,5 +16,9 @@ courseFilter <- Filter$new(
         ns("course"), "Course", courses
       )
     )
-  }
+  },
+  subquery = paste(
+    "SELECT course_id FROM dt_courses WHERE",
+    "year(from_iso8601_timestamp(course_start)) = ?year"
+  )
 )

@@ -48,4 +48,9 @@ server <- function(input, output, session) {
   Util$loadOnFirstTabSwitch(input, "pageTabs", "example-dashboard-1", exampleDashboard)
 }
 
-shinyApp(ui, server)
+shinyApp(ui, server, onStart = function() {
+  onStop(function() {
+    # Close all background workers
+    plan("sequential")
+  })
+})
