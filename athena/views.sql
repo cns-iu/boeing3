@@ -72,17 +72,29 @@ CREATE OR REPLACE VIEW dv_logs AS
     INNER JOIN dv_students AS S ON (L.username = S.username);
 
 -- dv_parent_child
-WITH parent_child AS 
-     (SELECT resource_id AS parent_id, 
-      child_id    
-      FROM edx_course_structure_prod_analytics AS a
-      CROSS JOIN UNNEST(a.children) AS t(child_id))
-
-SELECT parent_child.parent_id,
-       parent_child.child_id,
-       ROW_NUMBER() OVER (PARTITION BY parent_child.parent_id)
-       AS child_order
-  FROM parent_child;
+CREATE OR REPLACE VIEW dv_parent_child AS 
+WITH
+  parent_child AS (
+   SELECT
+     "resource_id" "parent_id"
+   , "child_id"
+   FROM
+     (edx_course_structure_prod_analytics a
+   CROSS JOIN UNNEST("a"."children") t (child_id))
+),
+cn AS (
+ SELECT
+  "resource_id",
+  metadata.display_name AS name
+ FROM edx_course_structure_prod_analytics
+)
+SELECT
+  "parent_child"."child_id"
+, "cn"."name"
+, "row_number"() OVER (PARTITION BY "parent_child"."parent_id") "child_order"
+, "parent_child"."parent_id"
+FROM
+  parent_child LEFT JOIN cn ON parent_child.child_id = cn.resource_id
 
 -- dv_course_str
 CREATE OR REPLACE VIEW dv_course_str AS 
