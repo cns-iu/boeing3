@@ -160,6 +160,7 @@ CREATE OR REPLACE VIEW dv_course_str AS
 		   a.module_id,
            a.mod_hex_id,
            a.name,
+	   a.module_type,
            SPLIT_PART(a.parent_id,'@',3) AS parent_id,
            a.child_order,
 		   ROW_NUMBER() OVER (PARTITION BY a.course_id 
