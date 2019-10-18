@@ -1,5 +1,6 @@
 # Creating a new dashboard
-A new dashboard is created using `Dashboard$new(filters, plots)`
+A new dashboard is created using `dashboard <- Dashboard$new(filters, plots)`.
+The dashboard can be placed in the top level *app.R* file or its own file and then sourced.
 
 ## filters
 A list of `Filter` instances. May be named in which case they will be available under those names in the plots query functions.
@@ -12,7 +13,7 @@ Each dashboard has an ui and server module functions that can be called just as 
 ```R
 dashboard <- Dashboard$new([...])
 myui <- shiny::fluidPage(
-  dashboard$ui("mydashboard", filter1.arg1, filter1.arg2, [...])
+  dashboard$ui("mydashboard" [, filter1.arg1][, filter1.arg2] [, ...])
 )
 ```
 

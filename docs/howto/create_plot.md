@@ -1,5 +1,5 @@
 # Creating a new dashboard plot
-A new plot is created using `Plot$new(query, process, [method = "plot"], [plotOptions], [renderOptions])`
+A new plot is created using `Plot$new(query, process, [method = "plot"], [plotOptions], [renderOptions])`. Plots can be placed in associated their dashboard *R* file or their own file.
 
 ## query - `function(connection, filters) -> data`
 A function performing all database queries to fetch the data for the plot.
