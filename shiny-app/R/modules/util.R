@@ -143,6 +143,7 @@ Filter <- R6Class(
 
       variables <- substring(private$.subquery, indexes$start + 1, indexes$end)
       normValues <- Map(function(value) {
+        if (is.null(value)) return("")
         if (length(value) == 1) return(value)
         Util$sqlPasteStrings(conn, .dots = value)
       }, values[variables])
