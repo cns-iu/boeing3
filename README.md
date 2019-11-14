@@ -31,6 +31,7 @@ Prerequisites
 - Systems Manager Parameter Store
 
 This solution uses Parameter Store to secure build variables. In the AWS Region you want to run services create the following parameters with:
+```
 SHINY_VERSION   (String)
 ATHENA_ODBC_RPM (String)
 SH_APP_ATHENA_DATABASE_ID   (String)
@@ -45,10 +46,12 @@ BLUE_ENDPOINT   (String)
 GREEN_ENDPOINT  (String)
 ACTIVE_ENDPOINT (String)
 UPSTREAM_FILE   (String)
+```
 See .env_example for example values
 
 IAM Service Account - Policy
 To run Athena Queries the service account requires the following rights:
+```
 {
     "Version": "2012-10-17",
     "Statement": [
@@ -119,6 +122,6 @@ To run Athena Queries the service account requires the following rights:
         }
     ]
 }
-
+```
 The solution is installable in any AWS account using the CloudFormation Scripts (./cf-templates) supplied.
 Install them in order 1-5 either through AWS Console or aws cli. 
