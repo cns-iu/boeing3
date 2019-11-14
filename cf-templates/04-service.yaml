@@ -1,0 +1,169 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Shiny-Server Docker App> (4) Creates the ECS Servers for the environment
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: "shiny-app"
+
+  ProjectName:
+    Type: String
+    Default: Shiny-Server/R Docker Project
+    Description: Enter an project name
+
+  EnvironmentName:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Development
+      - Testing
+      - Production
+    Description: Enter an environment
+
+  DesiredCount:
+    Type: Number
+    Default: 1
+
+  LaunchType:
+    Type: String
+    Default: Fargate
+    AllowedValues:
+      - Fargate
+      - EC2
+
+Conditions:
+  Fargate: !Equals [ !Ref LaunchType, "Fargate" ]
+
+  EC2: !Equals [ !Ref LaunchType, "EC2" ]
+
+
+Resources:
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: 'sys-man-parameterstore-access'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - ssm:GetParameters
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${AWS::StackName}
+
+  FargateService:
+    Type: AWS::ECS::Service
+    Condition: Fargate
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub "${StackPrefix}:ECSCluster"
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - Fn::ImportValue: !Sub "${StackPrefix}:ECSSecurityGroup"
+          Subnets:
+            - Fn::ImportValue: !Sub "${StackPrefix}:Subnet1"
+            - Fn::ImportValue: !Sub "${StackPrefix}:Subnet2"
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          TargetGroupArn:
+            Fn::ImportValue: !Sub "${StackPrefix}:ELBTargetGroup"
+
+  EC2Service:
+    Type: AWS::ECS::Service
+    Condition: EC2
+    Properties:
+      Cluster:
+        Fn::ImportValue: !Sub "${StackPrefix}:ECSCluster"
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          TargetGroupArn:
+            Fn::ImportValue: !Sub "${StackPrefix}:ELBTargetGroup"
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${AWS::StackName}-shiny-app
+      RequiresCompatibilities:
+        - !If [ Fargate, "FARGATE", "EC2" ]
+      Memory: 512
+      Cpu: 256
+      NetworkMode: !If [ Fargate, "awsvpc", "bridge" ]
+      ExecutionRoleArn: !Ref TaskExecutionRole
+      ContainerDefinitions:
+        - Name: nginx
+          Image: meappy/nginx-blue-green:latest
+          EntryPoint:
+            - /entrypoint.sh
+          Essential: false
+          Memory: 256
+          DependsOn:
+            - ContainerName: shiny-app
+              Condition: START
+          Secrets:
+            - Name: AUTH_USERNAME
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ShinyApp_Basic_Auth_Username"
+            - Name: AUTH_PASSWORD
+              ValueFrom: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/ShinyApp_Basic_Auth_Password"
+          Environment:
+            - Name: BLUE_ENDPOINT
+              Value: http://127.0.0.1:3838
+            - Name: GREEN_ENDPOINT
+              Value: http://127.0.0.1:3838
+            - Name: ACTIVE_ENDPOINT
+              Value: blue
+            - Name: UPSTREAM_FILE
+              Value: /etc/nginx/upstream/upstream.txt
+          PortMappings:
+            - ContainerPort: 80
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: !Ref AWS::StackName
+        - Name: shiny-app
+          Image: meappy/shiny-app:latest
+          EntryPoint:
+            - /entrypoint.sh
+          Essential: true
+          Memory: 256
+          PortMappings:
+            - ContainerPort: 3838
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref LogGroup
+              awslogs-stream-prefix: !Ref AWS::StackName
+
+Outputs:
+  Service:
+    Value: !If [ Fargate, !Ref FargateService, !Ref EC2Service ]
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, ECSService ] ]

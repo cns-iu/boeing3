@@ -1,0 +1,335 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Shiny-Server Docker App> (5) Creates the CI/CD CodePipeline for the environment
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: "shiny-app"
+
+  ProjectName:
+    Type: String
+    Default: Shiny-Server/R Docker Project
+    Description: Enter an project name
+
+  EnvironmentName:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Development
+      - Testing
+      - Production
+    Description: Enter an environment
+
+  Name:
+    Type: String
+    Default: "ecs-stack-codepipeline"
+
+  GitHubRepo:
+    Type: String
+    Default: shiny-app-docker
+
+  GitHubBranch:
+    Type: String
+    Default: master
+
+  GitHubToken:
+    Type: String
+    NoEcho: true
+    Default: git-hub-token-guid-here
+
+  GitHubUser:
+    Type: String
+    Default: git-hub-username-here
+
+Resources:
+  Repository:
+    Type: AWS::ECR::Repository
+    DeletionPolicy: Retain
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        -
+          Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${Repository}
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - ssm:GetParameters
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:DescribeTaskDefinition
+                  - ecs:DescribeTasks
+                  - ecs:ListTasks
+                  - ecs:RegisterTaskDefinition
+                  - ecs:UpdateService
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - iam:PassRole
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      Tags:
+          - Key: Name
+            Value: !Ref Name
+          -
+            Key: "Project"
+            Value:
+              !Sub "${ProjectName}"
+          -
+            Key: "Environment"
+            Value:
+              !Sub "${EnvironmentName}"
+          -
+            Key: "Purpose"
+            Value: "BI Infrastructure for C3L Data Lake"
+          -
+            Key: "Operator"
+            Value: "University of Indiana"
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: |
+          version: 0.2
+          env:
+            parameter-store:
+              SH_APP_ATHENA_DATABASE_ID: ShinyApp_Athena_Database_ID
+              SH_APP_ATHENA_RESULTS_BUCKET: ShinyApp_Athena_Results_Bucket
+              SH_APP_ATHENA_AWS_REGION: ShinyApp_Athena_AWS_Region
+              SH_APP_ATHENA_AWS_ACCESS_KEY_ID: ShinyApp_Athena_AWS_Access_Key_ID
+              SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY: ShinyApp_Athena_AWS_Secret_Access_Key
+              SH_APP_ATHENA_ODBC_DRIVER: ShinyApp_Athena_ODBC_Driver
+          phases:
+            pre_build:
+              commands:
+                - $(aws ecr get-login --no-include-email)
+                - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                - IMAGE_URI="${REPOSITORY_URI}:${TAG}"
+            build:
+              commands:
+                - >-
+                  docker build --tag "$IMAGE_URI"
+                  --build-arg SH_APP_ATHENA_DATABASE_ID="${SH_APP_ATHENA_DATABASE_ID}"
+                  --build-arg SH_APP_ATHENA_RESULTS_BUCKET="${SH_APP_ATHENA_RESULTS_BUCKET}"
+                  --build-arg SH_APP_ATHENA_AWS_REGION="${SH_APP_ATHENA_AWS_REGION}"
+                  --build-arg SH_APP_ATHENA_AWS_ACCESS_KEY_ID="${SH_APP_ATHENA_AWS_ACCESS_KEY_ID}"
+                  --build-arg SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY="${SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY}"
+                  --build-arg SH_APP_ATHENA_ODBC_DRIVER="${SH_APP_ATHENA_ODBC_DRIVER}" .
+            post_build:
+              commands:
+                - docker push "$IMAGE_URI"
+                - printf '[{"name":"shiny-app","imageUri":"%s"}]' "$IMAGE_URI" > images.json
+          artifacts:
+            files: images.json
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/docker:17.09.0
+        Type: LINUX_CONTAINER
+        EnvironmentVariables:
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${Repository}
+      Name: !Ref AWS::StackName
+      ServiceRole: !Ref CodeBuildServiceRole
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Version: 1
+                Provider: GitHub
+              Configuration:
+                Owner: !Ref GitHubUser
+                Repo: !Ref GitHubRepo
+                Branch: !Ref GitHubBranch
+                OAuthToken: !Ref GitHubToken
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: ECS
+              Configuration:
+                ClusterName:
+                  Fn::ImportValue: !Sub "${StackPrefix}:ECSCluster"
+                ServiceName:
+                  Fn::ImportValue: !Sub "${StackPrefix}:ECSService"
+                FileName: images.json
+              InputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+Outputs:
+  PipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}
+    Export:
+      Name: !Join [ ":", [ !Ref "AWS::StackName", PipelineUrl ] ]

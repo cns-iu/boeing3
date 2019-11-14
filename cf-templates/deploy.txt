@@ -1,0 +1,13 @@
+
+#deploy update to 04-service.yaml
+
+cd ./cf-templates
+aws cloudformation package --template-file .04-service.yaml --output-template-file ../.build/04-serviceDeploy.yaml --s3-bucket notgoingtobeused --profile cl3-bai-shared
+aws cloudformation deploy --template-file ../.build/04-serviceDeploy.yaml --stack-name shiny-app-ecs-service --profile cl3-bai-shared --region us-west-2 --capabilities CAPABILITY_IAM
+
+#deploy update to 05-deployment-pipeline.yaml
+
+*** CHANGE THE GITHUB USER + TOKEN BEFORE RUNNING
+cd ./cf-templates
+aws cloudformation package --template-file 05-deployment-pipeline.yaml --output-template-file ../.build/05-deployment-pipelineDeploy.yaml --s3-bucket notgoingtobeused --profile cl3-bai-shared
+aws cloudformation deploy --template-file ../.build/05-deployment-pipelineDeploy.yaml --stack-name shiny-app-ecs-pipeline --profile cl3-bai-shared --region us-west-2 --capabilities CAPABILITY_IAM --parameter-overrides GitHubUser=XXX GitHubToken=YYY

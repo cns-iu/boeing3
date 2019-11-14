@@ -1,0 +1,195 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Shiny-Server Docker App> (1) Creates the VPC for the environment
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: "shiny-app"
+  ProjectName:
+    Type: String
+    Default: Shiny-Server/R Docker Project
+    Description: Enter an project name
+  EnvironmentName:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Development
+      - Testing
+      - Production
+    Description: Enter an environment
+  Name:
+    Type: String
+    Default: "ecs-stack-vpc"
+
+  VpcCIDR:
+    Type: String
+    Default: "172.16.0.0/16"
+
+  Subnet1CIDR:
+    Type: String
+    Default: "172.16.1.0/25"
+
+  Subnet2CIDR:
+    Type: String
+    Default: "172.16.2.0/25"
+
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Ref Subnet1CIDR
+      Tags:
+        - Key: Name
+          Value: !Sub ${Name} (Public)
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  Subnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs ]
+      MapPublicIpOnLaunch: true
+      CidrBlock: !Ref Subnet2CIDR
+      Tags:
+        - Key: Name
+          Value: !Sub ${Name} (Public)
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  Subnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet1
+
+  Subnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RouteTable
+      SubnetId: !Ref Subnet2
+
+
+Outputs:
+  Subnets:
+    Value: !Join [ ",", [ !Ref Subnet1, !Ref Subnet2 ] ]
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, Subnets ] ]
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, VPC ] ]
+  Subnet1:
+    Value: !Ref Subnet1
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, Subnet1 ] ]
+  Subnet2:
+    Value: !Ref Subnet2
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, Subnet2 ] ]
