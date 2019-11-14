@@ -1,4 +1,4 @@
-# Welcome to the documentation for Boieng3
+# Welcome to the documentation for Boeing3
 This is a work in progress!
 
 ## Howto Documentation
