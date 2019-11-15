@@ -1,18 +1,38 @@
-version: '3'
+version: '3.7'
+  
 services:
-  shiny-app:
-    build: .
-    expose:
-      - "3838"
-    volumes:
-      - ./shiny-app/:/srv/shiny-server/
-      - ./logs/:/var/log/shiny-server/
-      - ./.Renviron:/home/shiny/.Renviron
-
-  nginx-proxy:
-    image: nginx
-    volumes:
-      - ./proxy/conf.d/:/etc/nginx/conf.d/
-      - ./logs/:/var/log/nginx/
+  nginx:
+    depends_on:
+      - shiny-app
+    image: meappy/nginx-blue-green
     ports:
-      - 80:80
+      - '80:80'
+    environment:
+      - AUTH_USERNAME=${AUTH_USERNAME:-admin}
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-MzlmaE1KS2RKKzByV0l2TDVNeS9ML2NU}
+      - BLUE_ENDPOINT=${BLUE_ENDPOINT:-shiny-app:3838}
+      - GREEN_ENDPOINT=${GREEN_ENDPOINT:-shiny-app:3838}
+      - ACTIVE_ENDPOINT=${ACTIVE_ENDPOINT:-blue}
+      - UPSTREAM_FILE=${UPSTREAM_FILE:-/etc/nginx/upstream/upstream.txt}
+    restart: always
+
+  shiny-app:
+    build:
+      context: .
+      args:
+        SHINY_VERSION: ${SHINY_VERSION}
+        ATHENA_ODBC_RPM: ${ATHENA_ODBC_RPM}
+        SH_APP_ATHENA_DATABASE_ID: ${SH_APP_ATHENA_DATABASE_ID}
+        SH_APP_ATHENA_RESULTS_BUCKET: ${SH_APP_ATHENA_RESULTS_BUCKET}
+        SH_APP_ATHENA_AWS_REGION: ${SH_APP_ATHENA_AWS_REGION}
+        SH_APP_ATHENA_AWS_ACCESS_KEY_ID: ${SH_APP_ATHENA_AWS_ACCESS_KEY_ID}
+        SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY: ${SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY}
+        SH_APP_ATHENA_ODBC_DRIVER: ${SH_APP_ATHENA_ODBC_DRIVER}
+    environment:
+      - SH_APP_ATHENA_DATABASE_ID=${SH_APP_ATHENA_DATABASE_ID}
+      - SH_APP_ATHENA_RESULTS_BUCKET=${SH_APP_ATHENA_RESULTS_BUCKET}
+      - SH_APP_ATHENA_AWS_REGION=${SH_APP_ATHENA_AWS_REGION}
+      - SH_APP_ATHENA_AWS_ACCESS_KEY_ID=${SH_APP_ATHENA_AWS_ACCESS_KEY_ID}
+      - SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY=${SH_APP_ATHENA_AWS_SECRET_ACCESS_KEY}
+      - SH_APP_ATHENA_ODBC_DRIVER=${SH_APP_ATHENA_ODBC_DRIVER}
+    restart: always

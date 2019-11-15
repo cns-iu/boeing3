@@ -1,0 +1,172 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Shiny-Server Docker App> (2) Creates the Elastic Load Balancer for the environment
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: "shiny-app"
+
+  ProjectName:
+    Type: String
+    Default: Shiny-Server/R Docker Project
+    Description: Enter an project name
+
+  EnvironmentName:
+    Type: String
+    Default: Production
+    AllowedValues:
+      - Development
+      - Testing
+      - Production
+    Description: Enter an environment
+
+  Name:
+    Type: String
+    Default: "ecs-stack-load-balancer"
+
+  LaunchType:
+    Type: String
+    Default: Fargate
+    AllowedValues:
+      - Fargate
+      - EC2
+
+Conditions:
+  EC2: !Equals [ !Ref LaunchType, "EC2" ]
+
+
+Resources:
+  SecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: !Sub ${AWS::StackName}-alb
+      SecurityGroupIngress:
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "TCP"
+          FromPort: 80
+          ToPort: 80
+      VpcId:
+        Fn::ImportValue: !Sub "${StackPrefix}:VPC"
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      #Subnets: !Ref Subnets
+      Subnets:
+        - Fn::ImportValue: !Join [ ":", [ !Ref StackPrefix, Subnet1 ] ]
+        - Fn::ImportValue: !Join [ ":", [ !Ref StackPrefix, Subnet2 ] ]
+      SecurityGroups:
+        - !Ref SecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: LoadBalancer
+    Properties:
+      VpcId:
+        Fn::ImportValue: !Sub "${StackPrefix}:VPC"
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-401
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetType: !If [ EC2, "instance", "ip" ]
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30
+      Tags:
+        - Key: Name
+          Value: !Ref Name
+        -
+          Key: "Project"
+          Value:
+            !Sub "${ProjectName}"
+        -
+          Key: "Environment"
+          Value:
+            !Sub "${EnvironmentName}"
+        -
+          Key: "Purpose"
+          Value: "BI Infrastructure for C3L Data Lake"
+        -
+          Key: "Operator"
+          Value: "University of Indiana"
+
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+
+
+Outputs:
+  TargetGroup:
+    Value: !Ref TargetGroup
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, ELBTargetGroup ] ]
+
+  ServiceUrl:
+    Description: URL of the load balancer for the sample service.
+    Value: !Sub http://${LoadBalancer.DNSName}
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, ELBServiceUrl ] ]
+
+  SecurityGroup:
+    Value: !Ref SecurityGroup
+    Export:
+      Name: !Join [ ":", [ !Ref StackPrefix, ELBSecurityGroup ] ]

@@ -7,3 +7,12 @@
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+
+# Build time files
+.secrets/*
+!.secrets/.gitkeep
+.env
+.trash
+.build/*
+!.build/.gitkeep
+.editorconfig

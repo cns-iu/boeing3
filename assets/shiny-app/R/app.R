@@ -12,7 +12,7 @@ source("modules/filters/student.R")
 source("modules/ui/home.R")
 source("modules/ui/example-dashboard.R")
 
-plan("multiprocess")
+plan("sequential")
 
 ui <- navbarPage(
   id = "pageTabs",
