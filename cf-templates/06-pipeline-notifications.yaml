@@ -1,0 +1,71 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Automate provisioning of CodePipeline notifications.
+
+Parameters:
+  CodePipelineName:
+    Description: Name of pipeline to listen for state changes
+    Type: String
+
+  EmailAddress:
+    Description: Email Address for sending SNS notifications
+    Type: String
+
+Resources:
+  EventRule: 
+    Type: "AWS::Events::Rule"
+    Properties: 
+      Description: "Event Rule Pipeline Failed"
+      EventPattern: 
+        source:
+        - aws.codepipeline
+        detail-type:
+        - CodePipeline Pipeline Execution State Change
+        detail:
+          pipeline:
+          - Ref: CodePipelineName
+          state:
+          - FAILED
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Ref: "ShinyAppPiplineSNSTopic"
+          Id: "PipelineNotificationTopic"
+          InputTransformer:
+            InputTemplate: 
+              !Sub '"The Pipeline <pipeline> has failed. Go to https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/<pipeline>" '
+            InputPathsMap:
+              pipeline: "$.detail.pipeline" 
+  EventRule: 
+    Type: "AWS::Events::Rule"
+    Properties: 
+      Description: "Event Rule Pipeline Succeeded"
+      EventPattern: 
+        source:
+        - aws.codepipeline
+        detail-type:
+        - CodePipeline Pipeline Execution State Change
+        detail:
+          pipeline:
+          - Ref: CodePipelineName
+          state:
+          - SUCCEEDED
+      State: "ENABLED"
+      Targets: 
+        - 
+          Arn: 
+            Ref: "ShinyAppPiplineSNSTopic"
+          Id: "PipelineNotificationTopic"
+          InputTransformer:
+            InputTemplate: 
+              !Sub '"The Pipeline <pipeline> has succeeded. Go to https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/<pipeline>" '
+            InputPathsMap:
+              pipeline: "$.detail.pipeline" 
+  ShinyAppPiplineSNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+      - Endpoint:
+          Ref: EmailAddress
+        Protocol: email
