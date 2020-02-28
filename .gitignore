@@ -2,6 +2,8 @@
 .Renviron
 .Rhistory
 .RData
+.Rproj.user
+.Ruserdata
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
@@ -16,3 +18,5 @@
 .build/*
 !.build/.gitkeep
 .editorconfig
+
+Shiny-Athena-documentation.docx
