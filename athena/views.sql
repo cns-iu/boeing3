@@ -5,8 +5,7 @@ CREATE OR REPLACE VIEW dv_courses AS
 SELECT DISTINCT
     resource_id as course_id,
     metadata.display_name as course_title,
-    metadata.start as course_start,
-    metadata
+    metadata.start as course_start
 FROM edx_course_structure_prod_analytics
 WHERE category = 'course'
 ORDER BY metadata.start DESC;
@@ -35,24 +34,19 @@ WHERE (U.is_staff = '0')
 ORDER BY P.user_id;
 
 -- dv_enrollments
-CREATE OR REPLACE VIEW dv_enrollments AS
+CREATE OR REPLACE VIEW dv_enroll_cert AS
 SELECT DISTINCT
     E.course_id,
     E.user_id,
     E.is_active,
     E.created AS enrollment_created,
-    S.username,
-    S.date_joined,
-    S.gender,
-    S.level_of_education,
-    S.year_of_birth,
     C.status AS cert_status,
     C.created_date AS cert_created_date,
     C.modified_date AS cert_modified_date,
     C.grade
 FROM edx_enrollment AS E
-INNER JOIN dv_students AS S ON (E.user_id = S.user_id)
-INNER JOIN edx_certificates AS C ON (E.user_id = C.user_id AND E.course_id = C.course_id)
+INNER JOIN dt_students AS S ON (E.user_id = S.user_id)
+INNER JOIN edx_certificates AS C ON (S.user_id = C.user_id AND E.course_id = C.course_id)
 ORDER BY E.course_id, E.user_id;
 
 -- dv_logs

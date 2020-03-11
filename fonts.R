@@ -24,3 +24,11 @@ font_add_google("EB Garamond","eb garamond")
 
 # Only has two styles: regular and bold
 font_add_google("Asul","asul")
+
+#Prompt
+#Overpass
+#Barlow Condensed
+#Roboto
+#Libre Franklin
+#Rubik
+#Archivo 

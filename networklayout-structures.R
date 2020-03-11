@@ -13,8 +13,8 @@ library(showtext)
 
 # Load course structure data
 data <- read.csv(file="W:/data/sow2.2-LAAL/MITxPRO-LASERxB1-1T2019/course/MITxPRO+LASERxB1+1T2019-module-lookup-n.csv",header=T)
-data <- data[,c("mod_hex_id","order","treelevel","mod_type","parent","name")]
-names(data) <- c("id","order","depth","type","parent","name")
+data <- data[,c("mod_hex_id","order","mod_type","parent","name")]
+names(data) <- c("id","order","type","parent","name")
 edges <- data[-1,c("parent","id")]
 names(edges) <- c("source","target")
 
@@ -30,13 +30,14 @@ font_add_google("Nunito","nunito")
 font_add_google("Lato","lato")
 
 #Course palette: combine sequential pal for course structure, and qualitative pal for content modules
-pal_qual <- qualpal(n=length(levels(data$type)[-c(1:4)]), 
+pal_qual <- qualpal(n=length(levels(data$type))-4, 
                     colorspace = list(h = c(300,40), 
                                       s = c(0.28, 0.9), 
                                       l = c(0.30, 0.80)))
-pal_str <- c(pal_seq_och(6)[4:1],pal_qual$hex[c(1,3,2,4:length(pal_qual$hex))])
+pal <- c(pal_str,pal_qual$hex[c(1,3,2,4:length(pal_qual$hex))])
 
 #Visualization
+windows()
 ggraph(lay, 'partition') + 
   geom_edge_elbow() +
   geom_node_tile(aes(y = y, fill = type), color="#f5f7ff") +
@@ -52,7 +53,7 @@ ggraph(lay, 'partition') +
                 x=x-round(width*.499-1.65,0),
                 family="nunito"),
             vjust=.01, hjust=0, size=6, colour="#102e47") +
-  scale_fill_manual(values=pal_str,
+  scale_fill_manual(values=pal,
                     labels=c(paste0(c("Course","Chapter","Sequential","Vertical"),rep("\nStr.", 4)),                                    #Structural Modules
                              paste0(stringr::str_to_title(levels(lay$type)[-c(1:4)]),rep("\nMod.", length(levels(lay$type)[-c(1:4)])))) #Content Modules
                     ) +
@@ -80,3 +81,4 @@ ggraph(lay, 'partition') +
     legend.position = "bottom",
     legend.justification = c(0,0)
   )
+
